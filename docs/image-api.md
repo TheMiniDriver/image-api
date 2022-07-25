@@ -59,11 +59,13 @@ Now lets create an `index.js` file, which will be the main file for our app. An 
 
 Save this blank file. 
 
+We also have a font file that we'll need to add to the project. Download and copy [this font](https://www.fontspace.com/short-baby-font-f34907) to your project folder.s
+
 Great, it's time to push this boilerplate project up to git. We can do it with the following from the command prompt or terminal: 
 
 ```bash
 git add . 
-git commit -am 'added libraries and index.js'
+git commit -am 'added libraries, index.js and font'
 git push origin
 ```
 
@@ -309,6 +311,7 @@ async function composeImage(req, res, next) {
   const width = background.width;
   const height = background.height;
 
+  registerFont("./ShortBaby.ttf", { family: "ShortBaby" });
   const canvas = createCanvas(width, height);
   const context = canvas.getContext("2d");
  
@@ -317,8 +320,9 @@ async function composeImage(req, res, next) {
   context.drawImage(logo, width - logo.width - logoPadding, height - logo.height - logoPadding);
 
   const textPadding = 30;
-  context.font = "bold 120pt Menlo";
+  context.font = "bold 120pt ShortBaby";
   context.textAlign = "left";
+  context.textBaseline = "top";
 
   const textSize = context.measureText(req.query.text);
   context.fillStyle = "rgba(255, 255, 255, 0.8)"
@@ -336,7 +340,7 @@ async function composeImage(req, res, next) {
 
 There is quite a bit of code in this function at first glance, so let's break it down. In the first 2 lines, we load up the `background` and `logo` images from file, using the `loadImage` function, along with the identifier we stored in the `req` object. 
 
-In the following 4 lines, we extract the width and height of the background image, and create a new, blank canvas object with these dimensions. A blank canvas is like opening up Paint and creating a new file. After we create the canvas, we get a reference to the context of the canvas. The context is the interface to the canvas, and is the way we draw onto the canvas. It has all the functions to add images, text, shapes, fills etc. You can think of it as equivalent to the tools palette, with all the brushes, pens, buckets etc, in Paint or Photoshop. 
+In the following 2 lines, we extract and storethe width and height of the background image. Then we load up our font to use, before creating a new, blank canvas object with these dimensions. A blank canvas is like opening up Paint and creating a new file. After we create the canvas, we get a reference to the context of the canvas. The context is the interface to the canvas, and is the way we draw onto the canvas. It has all the functions to add images, text, shapes, fills etc. You can think of it as equivalent to the tools palette, with all the brushes, pens, buckets etc, in Paint or Photoshop. 
 
 Because we want the logo to be a little indented from the right and bottom of the background image, we use the `logoPadding` variable to define the amount of padding we want. Then we draw the background image to the canvas, using the [`drawImage()`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage) function. The first argument to this function is the image we want to draw, and the second and third arguments are the x and y coordinates of the top left corner of where we want to place the image. The next 2 coordinates are the width and height of the image we want to draw. 
 
@@ -346,12 +350,12 @@ Now, we need to add the text to the image. We define a padding amount for the te
 
 Text drawn straight onto an image can be difficult to read, especially if the image has colours close to the text. To solve this problem, we'll first draw a background rectangle behind the text. This will give us a nice contrast between the text and the background. To find out how wide this background should be, we use the [`measureText()`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/measureText) function. This function returns an object with the dimensions in pixels that the text would take, given the set font and size. We also set the `fillStyle` to specify the colour the background should be. We're using `rgba` notation, which specifies the Red, Green, Blue and Alpha values for the colour. Alpha is the amount of transparency the fill should have, on a scale from 0(totally transparent) to 1(totally opaque). We then use the [`fillRect()`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillRect) function to draw the background rectangle. The first two arguments are the x and y coordinates of the top left corner of the rectangle, and the next two arguments are the width and height of the rectangle. We pad the edges a bit of the background rectangle to make sure the text is not too close to the edges of the background. 
 
-Now we can finally draw the text. We first change the `fillStyle` to the colour we want for the text. This time, we're using the [Hex notation](https://www.w3schools.com/htmL/html_colors_hex.asp) for the colour, in RGB order. `#444` is a dark grey. Then we use the [`fillText()`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillText) function to draw the text. The first argument is the text we want to draw, and the next two arguments are the x and y coordinates of the top left corner of where we want to draw the text. This is our padding offset. 
+Now we can finally draw the text. First thing is to set the font on the context, and specify the alignment. Then we change the `fillStyle` to the colour we want for the text. This time, we're using the [Hex notation](https://www.w3schools.com/htmL/html_colors_hex.asp) for the colour, in RGB order. `#444` is a dark grey. Then we use the [`fillText()`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillText) function to draw the text. The first argument is the text we want to draw, and the next two arguments are the x and y coordinates of the top left corner of where we want to draw the text. This is our padding offset. 
 
 Finally, we use the [`toBuffer()`](https://github.com/Automattic/node-canvas#canvastobuffer) function to convert the canvas to a buffer, which is a binary representation of the image which we can use to write an image file. We then use the same trick we used to store the `identifier` on the `req`uest object, so that it is available to the next middleware function to use.
 
 
-### Returining the Image
+### Returning the Image
 
 Now we need to send the image back to the API caller. Add the following function after the `composeImage` function:
 
@@ -367,12 +371,12 @@ This function sets the headers `Content-Type` to `image/png`, which lets the API
 
 ### Cleanup Middleware
 
-The next step is cleanup of the downloaded files, as we don't need them once the image is created and sent back to the API caller. Add the following function after the `sendImage` function:
+The next step is cleanup of the downloaded files, as we don't need them once the image is created and sent back to the API caller. We add empty callbacks, as we don't really need the result of the operation. In a production system, you might log the result in case there is an error when deleting. Add the following function after the `sendImage` function:
 
 ```js
 async function cleanupFiles(req, res, next) {
-  fs.unlink(`./${req.identifier}-background.jpg`);
-  fs.unlink(`./${req.identifier}-logo.jpg`);
+  fs.unlink(`./${req.identifier}-background.jpg`, () => {});
+  fs.unlink(`./${req.identifier}-logo.jpg`, () => {});
   next();
 }
 ```
@@ -386,24 +390,24 @@ node index.js
 ```
 You should see the message `Image API listening on port 3000` in the terminal. Our API is now listening for requests on port 3000.
 
-Let's test it out with some example images and text. We'll use the [Code Capsules logo](https://codecapsules.io/assets/images/v2/logo-code-capsules-brand-dark.svg), and a stock image background image from [imagesource](https://www.imagesource.com/wp-content/uploads/2019/06/Rio.jpg). And of course, for the text, we'll use the classic "Hello World". 
+Let's test it out with some example images and text. We'll use the [Code Capsules logo](https://codecapsules.io/assets/images/v2/logo-code-capsules-brand-dark.svg), and a stock image background image we've [linked here](https://codecapsules.io/docs/assets/tutorials/image-api/background.png). And of course, for the text, we'll use the classic "Hello World". 
 
 Combining all this into the URL to call our API looks like this:
 
 ```bash
-http://localhost:3000?background=https://www.imagesource.com/wp-content/uploads/2019/06/Rio.jpg&logo=https://codecapsules.io/assets/images/v2/logo-code-capsules-brand-dark.svg&text=Hello World
+http://localhost:3000?background=https://codecapsules.io/docs/assets/tutorials/image-api/background.png&logo=https://codecapsules.io/assets/images/v2/logo-code-capsules-brand-dark.svg&text=Hello World
 ```
 
 As we discussed earlier, before we call this, we need to URL encode the parameters. There are a few online services to do this, like [https://www.urlencoder.io](https://www.urlencoder.io). After encoding the URL, it should look like this: 
 
 ```bash
-http://localhost:3000?background=https%3A%2F%2Fwww.imagesource.com%2Fwp-content%2Fuploads%2F2019%2F06%2FRio.jpg&logo=https%3A%2F%2Fcodecapsules.io%2Fassets%2Fimages%2Fv2%2Flogo-code-capsules-brand-dark.svg&text=Hello%20World
+http://localhost:3000?background=https%3A%2F%2Fcodecapsules.io%2Fdocs%2Fassets%2Ftutorials%2Fimage-api%2Fbackground.png&logo=https%3A%2F%2Fcodecapsules.io%2Fassets%2Fimages%2Fv2%2Flogo-code-capsules-brand-dark.svg&text=Hello%20World
 ```
 
 If you have [`curl`](https://curl.se) installed, you can use the following command to test it out:
 
 ```bash
-curl -X GET "http://localhost:3000?background=https%3A%2F%2Fwww.imagesource.com%2Fwp-content%2Fuploads%2F2019%2F06%2FRio.jpg&logo=https%3A%2F%2Fcodecapsules.io%2Fassets%2Fimages%2Fv2%2Flogo-code-capsules-brand-dark.svg&text=Hello%20World" > output.png
+curl -X GET "http://localhost:3000?background=https%3A%2F%2Fcodecapsules.io%2Fdocs%2Fassets%2Ftutorials%2Fimage-api%2Fbackground.png&logo=https%3A%2F%2Fcodecapsules.io%2Fassets%2Fimages%2Fv2%2Flogo-code-capsules-brand-dark.svg&text=Hello%20World" > output.png
 ```
 This will create the image, and save it to the file `output.png`. Open it up, and you should see the following:
 
@@ -444,3 +448,10 @@ Some things you can do to improve the API, or just to experiment with it are:
 - We use the `https` module to download the images. This only supports HTTPS requests. We can use the `http` module to download the images if we want to support HTTP requests as well. Or you can try another HTTP client library like [`axios`](https://www.npmjs.com/package/axios).
 - Advanced: specify the resulting image size, and how it should resize the background.
 
+## Credits
+
+The background image is from [https://opengameart.org/content/background-3](https://opengameart.org/content/background-3)
+
+The font "ShortBaby" is from [https://www.fontspace.com/short-baby-font-f34907](https://www.fontspace.com/short-baby-font-f34907)] 
+
+The logo is from Code Capsules. 
