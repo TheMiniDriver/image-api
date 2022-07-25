@@ -2,7 +2,7 @@ const express = require("express");
 const fs = require("fs");
 const client = require("https");
 const crypto = require('crypto')
-const { createCanvas, loadImage } = require("canvas");
+const {registerFont, createCanvas, loadImage } = require("canvas");
 
 const app = express();
 const port = process.env.PORT || '3000';
@@ -97,6 +97,8 @@ async function composeImage(req, res, next) {
   const width = background.width;
   const height = background.height;
 
+  registerFont("./ShortBaby.ttf", { family: "ShortBaby" });
+
   const canvas = createCanvas(width, height);
   const context = canvas.getContext("2d");
  
@@ -108,7 +110,7 @@ async function composeImage(req, res, next) {
 
 
   const textPadding = 30;
-  context.font = "bold 120pt Menlo";
+  context.font = "bold 120pt ShortBaby";
   context.textAlign = "left";
   context.textBaseline = "top";
   const text = req.query.text;
