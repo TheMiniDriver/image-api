@@ -48,6 +48,7 @@ async function downloadBackground(req, res, next) {
       next();
     });
   }).on("error",(err)=>{
+    console.log(err);
     return res.status(500).send("error downloading background");
   });
 }
